@@ -25,7 +25,8 @@
     </style>
   <meta name="theme-color" content="#000000">
 <meta name="description" content="Personal workout tracker for Chris and Káťa">
-<link rel="icon" href="/workout/favicon.ico" /></head>
+<link rel="icon" href="/workout/favicon.ico" /><link rel="apple-touch-icon" href="/workout/apple-touch-icon.png">
+</head>
 
   <body>
     <!-- Use static rendering with Expo Router to support running without JavaScript. -->
@@ -35,5 +36,12 @@
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
   <script src="/workout/_expo/static/js/web/index-c0800de3dfd4155be45a8532d50a617b.js" defer></script>
+<script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/workout/sw.js')
+        .then(() => console.log('SW registered'))
+        .catch((e) => console.warn('SW error', e))
+    }
+  </script>
 </body>
 </html>

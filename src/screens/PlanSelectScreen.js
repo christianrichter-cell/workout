@@ -29,7 +29,7 @@ export default function PlanSelectScreen({ route, navigation }) {
 
       <Animated.View style={{ width: '100%', alignItems: 'center', opacity }}>
         <Text style={styles.title}>Choose your plan</Text>
-        <Text style={styles.subtitle}>Hey Chris, which plan are you following?</Text>
+        <Text style={styles.subtitle}>Hey {profileName}, which plan are you following?</Text>
 
         <View style={styles.buttons}>
           <TouchableOpacity style={styles.button} onPress={() => select('new')}>

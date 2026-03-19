@@ -346,7 +346,7 @@ export default function HistoryScreen({ route, navigation }) {
             </Text>
             {selectedEntries.length === 0
               ? <Text style={styles.empty}>No workout logged this day.</Text>
-              : selectedEntries.map(renderEntry)
+              : selectedEntries.map((entry) => renderEntry(entry))
             }
           </View>
         )}

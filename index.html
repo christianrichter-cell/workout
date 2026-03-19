@@ -35,8 +35,18 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/workout/_expo/static/js/web/index-6323be7850c2b8532e4806d66afd9188.js" defer></script>
-<script>
+  <script src="/workout/_expo/static/js/web/index-a07d52cf2fabd71b00e3ed84e47d7eaa.js" defer></script>
+<style>
+    @media (orientation: landscape) {
+      #landscape-block { display: flex !important; }
+    }
+  </style>
+  <div id="landscape-block" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;color:#fff;z-index:9999;align-items:center;justify-content:center;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,sans-serif;text-align:center;padding:40px;box-sizing:border-box;">
+    <div style="font-size:52px;margin-bottom:20px;">&#8635;</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:8px;">Please rotate your phone</div>
+    <div style="font-size:14px;color:#888;">This app is portrait only</div>
+  </div>
+  <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/workout/sw.js')
         .then(() => console.log('SW registered'))

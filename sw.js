@@ -1,13 +1,13 @@
 // Workout App Service Worker
 // Version is injected at build time — changing it forces all clients to refresh
-const CACHE = 'workout-app-v1773951756900'
+const CACHE = 'workout-app-v1773952058733'
 
 // Install: activate immediately without waiting
 self.addEventListener('install', () => {
   self.skipWaiting()
 })
 
-// Activate: delete old caches, claim all clients, then reload them
+// Activate: delete old caches and claim clients silently (no forced reload)
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
@@ -15,8 +15,6 @@ self.addEventListener('activate', (e) => {
         Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
       )
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
-      .then((clients) => clients.forEach((client) => client.navigate(client.url)))
   )
 })
 

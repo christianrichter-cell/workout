@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "WorkoutApp",
+    "name": "WORKOUT",
     "slug": "WorkoutApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/iOSIcon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -23,7 +23,19 @@
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "bundler": "metro",
+      "baseUrl": "/workout",
+      "favicon": "./assets/favicon.png",
+      "name": "WORKOUT",
+      "shortName": "WORKOUT",
+      "description": "Personal workout tracker for Chris and Káťa",
+      "themeColor": "#000000",
+      "backgroundColor": "#ffffff",
+      "display": "standalone",
+      "orientation": "portrait"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }

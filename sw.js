@@ -1,6 +1,6 @@
 // Workout App Service Worker
 // Version is injected at build time — changing it forces all clients to refresh
-const CACHE = 'workout-app-v1773948551885'
+const CACHE = 'workout-app-v1773949542702'
 
 // Install: activate immediately without waiting
 self.addEventListener('install', () => {

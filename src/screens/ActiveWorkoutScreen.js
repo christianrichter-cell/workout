@@ -37,18 +37,22 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const [confirmReset, setConfirmReset]           = useState(false)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const saveTimeouts = useRef({})
-  const scrollY = useRef(new Animated.Value(0)).current
+  const scrollY    = useRef(new Animated.Value(0)).current
+  const screenFade = useRef(new Animated.Value(0)).current
   const flatListRef = useRef(null)
   const lastFlatOffset = useRef(0)
   const isSnapping = useRef(false)
 
-  // Inject CSS scroll-snap directly onto the DOM node — snapToInterval doesn't
-  // reach the correct element through Animated.FlatList on web.
+  // Fade in + inject CSS scroll-snap once data is ready
   useEffect(() => {
     if (!settingsLoaded) return
+    Animated.timing(screenFade, { toValue: 1, duration: 280, useNativeDriver: true }).start()
     const t = setTimeout(() => {
       const node = flatListRef.current?.getScrollableNode?.()
-      if (node?.style) node.style.scrollSnapType = 'y mandatory'
+      if (node?.style) {
+        node.style.scrollSnapType = 'y mandatory'
+        node.style.scrollPaddingTop = '0px'
+      }
     }, 50)
     return () => clearTimeout(t)
   }, [settingsLoaded])
@@ -262,6 +266,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
           <ActivityIndicator size="large" color={C.primary} />
         </View>
       ) : (
+      <Animated.View style={{ flex: 1, opacity: screenFade }}>
       <Animated.FlatList
         ref={flatListRef}
         data={exercises}
@@ -292,7 +297,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
           const opacity = scrollY.interpolate({ inputRange, outputRange: [0.25, 1, 0.25], extrapolate: 'clamp' })
           const scale   = scrollY.interpolate({ inputRange, outputRange: [0.94, 1, 0.94], extrapolate: 'clamp' })
           return (
-            <Animated.View style={{ height: CARD_HEIGHT, opacity, transform: [{ scale }], paddingHorizontal: 16, paddingVertical: 4, scrollSnapAlign: 'start' }}>
+            <Animated.View style={{ height: CARD_HEIGHT, opacity, transform: [{ scale }], paddingHorizontal: 16, paddingVertical: 4, scrollSnapAlign: 'center' }}>
               <ExerciseCard
                 exercise={item}
                 settings={settings[item.key] ?? { sets: item.defaultSets, reps: item.defaultReps, weight_kg: item.defaultWeight }}
@@ -345,6 +350,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
           </View>
         }
       />
+      </Animated.View>
       )}
 
       {restTimer !== null && (

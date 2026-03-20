@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Text, TouchableOpacity, Animated, StyleSheet } from 'react-native'
+import { Text, TouchableOpacity, Animated, Easing, StyleSheet } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
 const SIZE = 240
 const RADIUS = 104
@@ -9,10 +11,17 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export default function RestTimer({ seconds, onDismiss }) {
   const [remaining, setRemaining] = useState(seconds)
-  const fadeAnim = useRef(new Animated.Value(0)).current
+  const fadeAnim   = useRef(new Animated.Value(0)).current
+  const offsetAnim = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start()
+    Animated.timing(offsetAnim, {
+      toValue: CIRCUMFERENCE,
+      duration: seconds * 1000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start()
   }, [])
 
   useEffect(() => {
@@ -23,8 +32,6 @@ export default function RestTimer({ seconds, onDismiss }) {
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000)
     return () => clearTimeout(t)
   }, [remaining])
-
-  const progress = remaining / seconds
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
@@ -38,14 +45,15 @@ export default function RestTimer({ seconds, onDismiss }) {
             strokeWidth={STROKE}
             fill="none"
           />
-          <Circle
+          <AnimatedCircle
             cx={SIZE / 2}
             cy={SIZE / 2}
             r={RADIUS}
             stroke="#e53935"
             strokeWidth={STROKE}
             fill="none"
-            strokeDasharray={[CIRCUMFERENCE * progress, CIRCUMFERENCE]}
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={offsetAnim}
             strokeLinecap="round"
             transform={`rotate(-90, ${SIZE / 2}, ${SIZE / 2})`}
           />

@@ -39,7 +39,6 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const saveTimeouts = useRef({})
   const scrollY = useRef(new Animated.Value(0)).current
   const flatListRef = useRef(null)
-  const flatScrollDebounce = useRef(null)
   const lastFlatOffset = useRef(0)
   const isSnapping = useRef(false)
 
@@ -185,28 +184,33 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
 
   const currentExercise = exercises[currentIndex]
 
-  const snapToNearest = () => {
-    const maxExerciseOffset = (exercises.length - 1) * CARD_HEIGHT
-    if (lastFlatOffset.current > maxExerciseOffset + CARD_HEIGHT / 2) return
-    const idx = Math.max(0, Math.min(exercises.length - 1,
-      Math.round(lastFlatOffset.current / CARD_HEIGHT)))
-    const target = idx * CARD_HEIGHT
-    if (Math.abs(lastFlatOffset.current - target) < 2) return
+  const VELOCITY_THRESHOLD = 0.3
+
+  const snapTo = (idx) => {
+    const target = Math.max(0, Math.min(exercises.length - 1, idx)) * CARD_HEIGHT
     isSnapping.current = true
     flatListRef.current?.scrollToOffset({ offset: target, animated: true })
     setTimeout(() => { isSnapping.current = false }, 700)
   }
 
-  const handleFlatListScroll = (e) => {
-    lastFlatOffset.current = e.nativeEvent.contentOffset.y
-    if (isSnapping.current) return
-    clearTimeout(flatScrollDebounce.current)
-    flatScrollDebounce.current = setTimeout(snapToNearest, 250)
+  const handleScrollEndDrag = (e) => {
+    const offset = e.nativeEvent.contentOffset.y
+    const vel = e.nativeEvent.velocity?.y ?? 0
+    const nearestIdx = Math.round(offset / CARD_HEIGHT)
+    if (Math.abs(vel) > VELOCITY_THRESHOLD) {
+      snapTo(vel > 0 ? nearestIdx + 1 : nearestIdx - 1)
+    } else {
+      snapTo(nearestIdx)
+    }
   }
 
-  const handleFlatListDragStart = () => {
-    isSnapping.current = false
-    clearTimeout(flatScrollDebounce.current)
+  const handleMomentumEnd = (e) => {
+    if (isSnapping.current) return
+    snapTo(Math.round(e.nativeEvent.contentOffset.y / CARD_HEIGHT))
+  }
+
+  const handleFlatListScroll = (e) => {
+    lastFlatOffset.current = e.nativeEvent.contentOffset.y
   }
 
   const openTutorial = () => {
@@ -251,7 +255,8 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
         scrollEventThrottle={16}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        onScrollBeginDrag={handleFlatListDragStart}
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollEnd={handleMomentumEnd}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false, listener: handleFlatListScroll }

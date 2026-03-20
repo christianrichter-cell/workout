@@ -25,7 +25,6 @@ export default function RestTimer({ seconds, onDismiss }) {
   }, [remaining])
 
   const progress = remaining / seconds
-  const strokeDashoffset = CIRCUMFERENCE * (1 - progress)
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
@@ -46,8 +45,7 @@ export default function RestTimer({ seconds, onDismiss }) {
             stroke="#e53935"
             strokeWidth={STROKE}
             fill="none"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={strokeDashoffset}
+            strokeDasharray={[CIRCUMFERENCE * progress, CIRCUMFERENCE]}
             strokeLinecap="round"
             transform={`rotate(-90, ${SIZE / 2}, ${SIZE / 2})`}
           />

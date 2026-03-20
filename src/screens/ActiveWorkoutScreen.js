@@ -42,6 +42,17 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const lastFlatOffset = useRef(0)
   const isSnapping = useRef(false)
 
+  // Inject CSS scroll-snap directly onto the DOM node — snapToInterval doesn't
+  // reach the correct element through Animated.FlatList on web.
+  useEffect(() => {
+    if (!settingsLoaded) return
+    const t = setTimeout(() => {
+      const node = flatListRef.current?.getScrollableNode?.()
+      if (node?.style) node.style.scrollSnapType = 'y mandatory'
+    }, 50)
+    return () => clearTimeout(t)
+  }, [settingsLoaded])
+
   useEffect(() => {
     AsyncStorage.getItem(stateKey(profileName, workoutKey)).then((raw) => {
       if (raw) {
@@ -255,7 +266,6 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
         ref={flatListRef}
         data={exercises}
         keyExtractor={(item) => item.key}
-        snapToInterval={CARD_HEIGHT}
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
@@ -282,7 +292,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
           const opacity = scrollY.interpolate({ inputRange, outputRange: [0.25, 1, 0.25], extrapolate: 'clamp' })
           const scale   = scrollY.interpolate({ inputRange, outputRange: [0.94, 1, 0.94], extrapolate: 'clamp' })
           return (
-            <Animated.View style={{ height: CARD_HEIGHT, opacity, transform: [{ scale }], paddingHorizontal: 16, paddingVertical: 4 }}>
+            <Animated.View style={{ height: CARD_HEIGHT, opacity, transform: [{ scale }], paddingHorizontal: 16, paddingVertical: 4, scrollSnapAlign: 'start' }}>
               <ExerciseCard
                 exercise={item}
                 settings={settings[item.key] ?? { sets: item.defaultSets, reps: item.defaultReps, weight_kg: item.defaultWeight }}

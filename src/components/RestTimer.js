@@ -66,10 +66,23 @@ export default function RestTimer({ seconds, onDismiss }) {
       if (released) return
       if (document.visibilityState === 'visible') {
         acquire()
-        // Sync countdown and ring to real elapsed time on resume
-        const real = Math.max(0, (endTimeRef.current - Date.now()) / 1000)
-        setRemaining(Math.ceil(real))
-        startRing(real)
+        const real = (endTimeRef.current - Date.now()) / 1000
+        if (real <= 0) {
+          // Timer expired while phone was locked — notify now that screen is back
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try {
+              new Notification('Rest complete!', {
+                body: 'Time to get back to it 💪',
+                icon: '/apple-touch-icon.png',
+              })
+            } catch (_) {}
+          }
+          Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onDismiss)
+        } else {
+          // Still running — resync to real elapsed time
+          setRemaining(Math.ceil(real))
+          startRing(real)
+        }
       }
     }
 

@@ -407,7 +407,8 @@ function createStyles(C) {
 
     footer: {
       paddingHorizontal: 20,
-      paddingVertical: 24,
+      paddingTop: 24,
+      paddingBottom: 80,
       gap: 12,
       justifyContent: 'center',
     },

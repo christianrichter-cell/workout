@@ -309,7 +309,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
           )
         }}
         ListFooterComponent={
-          <View style={styles.footer}>
+          <View style={[styles.footer, { minHeight: CARD_HEIGHT, scrollSnapAlign: 'start' }]}>
             {showFinishOptions === 'partial' ? (
               <>
                 <TouchableOpacity style={styles.finishAnywayBtn} onPress={finishAnyway}>

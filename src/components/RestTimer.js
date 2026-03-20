@@ -20,6 +20,7 @@ export default function RestTimer({ seconds, totalSeconds, endTime: endTimeProp,
   const wakeLockRef  = useRef(null)
   const intervalRef  = useRef(null)
   const audioCtxRef  = useRef(null)
+  const notifiedRef  = useRef(false)  // prevents double-fire from interval + visibilitychange
 
   // Create AudioContext on mount (must happen close to a user gesture on iOS)
   useEffect(() => {
@@ -59,24 +60,20 @@ export default function RestTimer({ seconds, totalSeconds, endTime: endTimeProp,
     }).start()
   }
 
+  const sendAlert = () => {
+    if (notifiedRef.current) return
+    notifiedRef.current = true
+    // Always notify + beep regardless of whether app is open or backgrounded
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try { new Notification('Rest complete!', { body: 'Time to get back to it 💪', icon: '/apple-touch-icon.png' }) } catch (_) {}
+    }
+    playBeep()
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate([300, 100, 300])
+  }
+
   const handleComplete = () => {
     clearInterval(intervalRef.current)
-    const appVisible = typeof document !== 'undefined' && document.visibilityState === 'visible'
-    if (appVisible) {
-      playBeep()
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate([300, 100, 300])
-      }
-    } else {
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try {
-          new Notification('Rest complete!', {
-            body: 'Time to get back to it 💪',
-            icon: '/apple-touch-icon.png',
-          })
-        } catch (_) {}
-      }
-    }
+    sendAlert()
     Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onDismiss)
   }
 
@@ -95,15 +92,7 @@ export default function RestTimer({ seconds, totalSeconds, endTime: endTimeProp,
         acquire()
         const real = (endTimeRef.current - Date.now()) / 1000
         if (real <= 0) {
-          // Timer expired while phone was locked — notify on resume
-          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            try {
-              new Notification('Rest complete!', {
-                body: 'Time to get back to it 💪',
-                icon: '/apple-touch-icon.png',
-              })
-            } catch (_) {}
-          }
+          sendAlert()
           Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onDismiss)
         } else {
           setRemaining(Math.ceil(real))

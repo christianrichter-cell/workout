@@ -78,6 +78,10 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
           setRestTimer({ remaining, totalSeconds })
         } else {
           AsyncStorage.removeItem('active_rest_timer')
+          // Timer expired while app was fully closed — notify on reopen
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try { new Notification('Rest complete!', { body: 'Time to get back to it 💪', icon: '/apple-touch-icon.png' }) } catch (_) {}
+          }
         }
       } catch (_) {}
     })

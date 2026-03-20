@@ -9,19 +9,51 @@ const RADIUS = 104
 const STROKE = 10
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
-// Show a notification (only if permission already granted — never prompt mid-workout)
-function notify(title, body) {
-  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
-  try { new Notification(title, { body, icon: '/apple-touch-icon.png' }) } catch (_) {}
-}
-
 export default function RestTimer({ seconds, onDismiss }) {
   const [remaining, setRemaining] = useState(seconds)
   const fadeAnim     = useRef(new Animated.Value(0)).current
   const progressAnim = useRef(new Animated.Value(CIRCUMFERENCE)).current
   const wakeLockRef  = useRef(null)
+  const intervalRef  = useRef(null)
+  // Wall-clock end time — survives JS suspension on lock
+  const endTimeRef   = useRef(Date.now() + seconds * 1000)
 
-  // ── Wake Lock: keep screen on for the whole rest ──────────────────────────
+  // Start (or restart) the ring animation from a real seconds value
+  const startRing = (fromSecs) => {
+    const dashLen = Math.max(0, (fromSecs / seconds)) * CIRCUMFERENCE
+    progressAnim.stopAnimation()
+    progressAnim.setValue(dashLen)
+    Animated.timing(progressAnim, {
+      toValue: 0,
+      duration: fromSecs * 1000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start()
+  }
+
+  const handleComplete = () => {
+    clearInterval(intervalRef.current)
+    const appVisible = typeof document !== 'undefined' && document.visibilityState === 'visible'
+    if (appVisible) {
+      // Foreground: vibrate only — no notification spam while user is watching
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([300, 100, 300])
+      }
+    } else {
+      // Backgrounded / locked: push notification so user knows to come back
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          new Notification('Rest complete!', {
+            body: 'Time to get back to it 💪',
+            icon: '/apple-touch-icon.png',
+          })
+        } catch (_) {}
+      }
+    }
+    Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onDismiss)
+  }
+
+  // ── Wake Lock ─────────────────────────────────────────────────────────────
   useEffect(() => {
     let released = false
 
@@ -30,14 +62,19 @@ export default function RestTimer({ seconds, onDismiss }) {
       try { wakeLockRef.current = await navigator.wakeLock.request('screen') } catch (_) {}
     }
 
-    // Re-acquire if the system released it (e.g. tab went to background then returned)
     const onVisibility = () => {
-      if (!released && document.visibilityState === 'visible') acquire()
+      if (released) return
+      if (document.visibilityState === 'visible') {
+        acquire()
+        // Sync countdown and ring to real elapsed time on resume
+        const real = Math.max(0, (endTimeRef.current - Date.now()) / 1000)
+        setRemaining(Math.ceil(real))
+        startRing(real)
+      }
     }
 
     acquire()
     document.addEventListener('visibilitychange', onVisibility)
-
     return () => {
       released = true
       document.removeEventListener('visibilitychange', onVisibility)
@@ -45,27 +82,23 @@ export default function RestTimer({ seconds, onDismiss }) {
     }
   }, [])
 
-  // ── Ring + fade-in animation ───────────────────────────────────────────────
+  // ── Countdown (wall-clock based, 500 ms poll so resume is near-instant) ───
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start()
-    Animated.timing(progressAnim, {
-      toValue: 0,
-      duration: seconds * 1000,
-      easing: Easing.linear,
-      useNativeDriver: false,
-    }).start()
-  }, [])
+    startRing(seconds)
 
-  // ── Countdown tick ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (remaining <= 0) {
-      notify('Rest complete!', 'Time to get back to it 💪')
-      Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onDismiss)
-      return
-    }
-    const t = setTimeout(() => setRemaining((r) => r - 1), 1000)
-    return () => clearTimeout(t)
-  }, [remaining])
+    intervalRef.current = setInterval(() => {
+      const real = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
+      if (real <= 0) {
+        setRemaining(0)
+        handleComplete()
+      } else {
+        setRemaining(real)
+      }
+    }, 500)
+
+    return () => clearInterval(intervalRef.current)
+  }, [])
 
   const dashArray = progressAnim.interpolate({
     inputRange:  [0, CIRCUMFERENCE],

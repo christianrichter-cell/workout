@@ -57,11 +57,19 @@ fs.copyFileSync(
 )
 console.log('✓ apple-touch-icon.png copied')
 
-// ── 3. Generate sw.js with current version ───────────────────
+// ── 3. Generate sw.js with version + pre-cached image list ───
+const imageDir = path.join(dist, 'assets', 'assets', 'Workout Images')
+const imageFiles = fs.existsSync(imageDir)
+  ? fs.readdirSync(imageDir).filter((f) => /\.(png|jpe?g|webp|gif)$/i.test(f))
+  : []
+const imagePaths = imageFiles.map((f) => `/workout/assets/assets/Workout%20Images/${f}`)
+
 const swTemplate = fs.readFileSync(path.join(__dirname, '..', 'sw-template.js'), 'utf8')
-const sw = swTemplate.replace('__VERSION__', version)
+const sw = swTemplate
+  .replace('__VERSION__', version)
+  .replace('__PRECACHE_IMAGES__', JSON.stringify(imagePaths))
 fs.writeFileSync(path.join(dist, 'sw.js'), sw)
-console.log(`✓ sw.js generated (${version})`)
+console.log(`✓ sw.js generated (${version}) — pre-caching ${imagePaths.length} image(s)`)
 
 // ── 4. Patch asset paths in JS bundle ────────────────────────
 // Expo puts images at /assets/... in the bundle, but the app lives at /workout/

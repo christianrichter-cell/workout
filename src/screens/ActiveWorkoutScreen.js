@@ -41,7 +41,6 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const flatListRef = useRef(null)
   const lastFlatOffset = useRef(0)
   const isSnapping = useRef(false)
-  const snapDebounce = useRef(null)
 
   useEffect(() => {
     AsyncStorage.getItem(stateKey(profileName, workoutKey)).then((raw) => {
@@ -188,45 +187,35 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const VELOCITY_THRESHOLD = 0.3
 
   const snapTo = (idx) => {
-    clearTimeout(snapDebounce.current)
     const target = Math.max(0, Math.min(exercises.length - 1, idx)) * CARD_HEIGHT
     isSnapping.current = true
     flatListRef.current?.scrollToOffset({ offset: target, animated: true })
     setTimeout(() => { isSnapping.current = false }, 700)
   }
 
-  // Fires when user lifts finger — use velocity to decide next/prev vs nearest
+  // Only override native snap when the user flicks hard enough to intend next/prev
   const handleScrollEndDrag = (e) => {
     const offset = e.nativeEvent.contentOffset.y
     const vel = e.nativeEvent.velocity?.y ?? 0
     const nearestIdx = Math.round(offset / CARD_HEIGHT)
     if (Math.abs(vel) > VELOCITY_THRESHOLD) {
-      snapTo(vel > 0 ? nearestIdx + 1 : nearestIdx - 1)
-    } else {
-      snapTo(nearestIdx)
+      const targetIdx = vel > 0 ? nearestIdx + 1 : nearestIdx - 1
+      if (targetIdx !== nearestIdx) snapTo(targetIdx)
     }
   }
 
-  // Safety net: fires after native momentum finishes (e.g. on iOS WebKit)
+  // Safety net for browsers where snapToInterval doesn't fully work
   const handleMomentumEnd = (e) => {
     if (isSnapping.current) return
     snapTo(Math.round(e.nativeEvent.contentOffset.y / CARD_HEIGHT))
   }
 
-  // Debounce fallback: catches slow drags where onScrollEndDrag may not fire
   const handleFlatListScroll = (e) => {
     lastFlatOffset.current = e.nativeEvent.contentOffset.y
-    if (isSnapping.current) return
-    clearTimeout(snapDebounce.current)
-    snapDebounce.current = setTimeout(
-      () => snapTo(Math.round(lastFlatOffset.current / CARD_HEIGHT)),
-      300,
-    )
   }
 
   const handleFlatListDragStart = () => {
     isSnapping.current = false
-    clearTimeout(snapDebounce.current)
   }
 
   const openTutorial = () => {
@@ -266,6 +255,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
         ref={flatListRef}
         data={exercises}
         keyExtractor={(item) => item.key}
+        snapToInterval={CARD_HEIGHT}
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}

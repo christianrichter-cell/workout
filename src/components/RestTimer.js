@@ -9,14 +9,45 @@ const RADIUS = 104
 const STROKE = 10
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
+// Show a notification (only if permission already granted — never prompt mid-workout)
+function notify(title, body) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  try { new Notification(title, { body, icon: '/apple-touch-icon.png' }) } catch (_) {}
+}
+
 export default function RestTimer({ seconds, onDismiss }) {
   const [remaining, setRemaining] = useState(seconds)
-  const fadeAnim    = useRef(new Animated.Value(0)).current
-  const progressAnim = useRef(new Animated.Value(CIRCUMFERENCE)).current // C → 0
+  const fadeAnim     = useRef(new Animated.Value(0)).current
+  const progressAnim = useRef(new Animated.Value(CIRCUMFERENCE)).current
+  const wakeLockRef  = useRef(null)
 
+  // ── Wake Lock: keep screen on for the whole rest ──────────────────────────
+  useEffect(() => {
+    let released = false
+
+    const acquire = async () => {
+      if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return
+      try { wakeLockRef.current = await navigator.wakeLock.request('screen') } catch (_) {}
+    }
+
+    // Re-acquire if the system released it (e.g. tab went to background then returned)
+    const onVisibility = () => {
+      if (!released && document.visibilityState === 'visible') acquire()
+    }
+
+    acquire()
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      released = true
+      document.removeEventListener('visibilitychange', onVisibility)
+      wakeLockRef.current?.release().catch(() => {})
+    }
+  }, [])
+
+  // ── Ring + fade-in animation ───────────────────────────────────────────────
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start()
-    // Drive the ring: dashLen shrinks C → 0 over the full duration
     Animated.timing(progressAnim, {
       toValue: 0,
       duration: seconds * 1000,
@@ -25,8 +56,10 @@ export default function RestTimer({ seconds, onDismiss }) {
     }).start()
   }, [])
 
+  // ── Countdown tick ────────────────────────────────────────────────────────
   useEffect(() => {
     if (remaining <= 0) {
+      notify('Rest complete!', 'Time to get back to it 💪')
       Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onDismiss)
       return
     }
@@ -34,9 +67,6 @@ export default function RestTimer({ seconds, onDismiss }) {
     return () => clearTimeout(t)
   }, [remaining])
 
-  // Clockwise drain: gap starts at 12 o'clock and grows clockwise.
-  // strokeDasharray = [dashLen, gapLen], strokeDashoffset = dashLen
-  // → gap (= gapLen) is always at path-start (12), dash follows after.
   const dashArray = progressAnim.interpolate({
     inputRange:  [0, CIRCUMFERENCE],
     outputRange: [`0 ${CIRCUMFERENCE}`, `${CIRCUMFERENCE} 0`],

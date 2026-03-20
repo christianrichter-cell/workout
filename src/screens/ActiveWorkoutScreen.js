@@ -110,7 +110,13 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
     const next = { ...completedSets, [exerciseKey]: newSets }
     setCompletedSets(next)
     AsyncStorage.setItem(stateKey(profileName, workoutKey), JSON.stringify(next))
-    if (setAdded) setRestTimer(restDuration)
+    if (setAdded) {
+      // Ask for notification permission the first time a set is completed
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission()
+      }
+      setRestTimer(restDuration)
+    }
   }
 
   const goHome = () => navigation.goBack()

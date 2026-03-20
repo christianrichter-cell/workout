@@ -41,6 +41,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const flatListRef = useRef(null)
   const lastFlatOffset = useRef(0)
   const isSnapping = useRef(false)
+  const snapDebounce = useRef(null)
 
   useEffect(() => {
     AsyncStorage.getItem(stateKey(profileName, workoutKey)).then((raw) => {
@@ -187,12 +188,14 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const VELOCITY_THRESHOLD = 0.3
 
   const snapTo = (idx) => {
+    clearTimeout(snapDebounce.current)
     const target = Math.max(0, Math.min(exercises.length - 1, idx)) * CARD_HEIGHT
     isSnapping.current = true
     flatListRef.current?.scrollToOffset({ offset: target, animated: true })
     setTimeout(() => { isSnapping.current = false }, 700)
   }
 
+  // Fires when user lifts finger — use velocity to decide next/prev vs nearest
   const handleScrollEndDrag = (e) => {
     const offset = e.nativeEvent.contentOffset.y
     const vel = e.nativeEvent.velocity?.y ?? 0
@@ -204,13 +207,26 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
     }
   }
 
+  // Safety net: fires after native momentum finishes (e.g. on iOS WebKit)
   const handleMomentumEnd = (e) => {
     if (isSnapping.current) return
     snapTo(Math.round(e.nativeEvent.contentOffset.y / CARD_HEIGHT))
   }
 
+  // Debounce fallback: catches slow drags where onScrollEndDrag may not fire
   const handleFlatListScroll = (e) => {
     lastFlatOffset.current = e.nativeEvent.contentOffset.y
+    if (isSnapping.current) return
+    clearTimeout(snapDebounce.current)
+    snapDebounce.current = setTimeout(
+      () => snapTo(Math.round(lastFlatOffset.current / CARD_HEIGHT)),
+      300,
+    )
+  }
+
+  const handleFlatListDragStart = () => {
+    isSnapping.current = false
+    clearTimeout(snapDebounce.current)
   }
 
   const openTutorial = () => {
@@ -255,6 +271,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
         scrollEventThrottle={16}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        onScrollBeginDrag={handleFlatListDragStart}
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumEnd}
         onScroll={Animated.event(

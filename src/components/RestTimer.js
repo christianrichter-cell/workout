@@ -11,13 +11,14 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export default function RestTimer({ seconds, onDismiss }) {
   const [remaining, setRemaining] = useState(seconds)
-  const fadeAnim   = useRef(new Animated.Value(0)).current
-  const offsetAnim = useRef(new Animated.Value(0)).current
+  const fadeAnim    = useRef(new Animated.Value(0)).current
+  const progressAnim = useRef(new Animated.Value(CIRCUMFERENCE)).current // C → 0
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start()
-    Animated.timing(offsetAnim, {
-      toValue: CIRCUMFERENCE,
+    // Drive the ring: dashLen shrinks C → 0 over the full duration
+    Animated.timing(progressAnim, {
+      toValue: 0,
       duration: seconds * 1000,
       easing: Easing.linear,
       useNativeDriver: false,
@@ -32,6 +33,14 @@ export default function RestTimer({ seconds, onDismiss }) {
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000)
     return () => clearTimeout(t)
   }, [remaining])
+
+  // Clockwise drain: gap starts at 12 o'clock and grows clockwise.
+  // strokeDasharray = [dashLen, gapLen], strokeDashoffset = dashLen
+  // → gap (= gapLen) is always at path-start (12), dash follows after.
+  const dashArray = progressAnim.interpolate({
+    inputRange:  [0, CIRCUMFERENCE],
+    outputRange: [`0 ${CIRCUMFERENCE}`, `${CIRCUMFERENCE} 0`],
+  })
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
@@ -52,8 +61,8 @@ export default function RestTimer({ seconds, onDismiss }) {
             stroke="#e53935"
             strokeWidth={STROKE}
             fill="none"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={offsetAnim}
+            strokeDasharray={dashArray}
+            strokeDashoffset={progressAnim}
             strokeLinecap="round"
             transform={`rotate(-90, ${SIZE / 2}, ${SIZE / 2})`}
           />

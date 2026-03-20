@@ -9,18 +9,46 @@ const RADIUS = 104
 const STROKE = 10
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
-export default function RestTimer({ seconds, onDismiss }) {
-  const [remaining, setRemaining] = useState(seconds)
+export default function RestTimer({ seconds, totalSeconds, endTime: endTimeProp, onDismiss }) {
+  const total       = totalSeconds ?? seconds
+  const endTimeRef  = useRef(endTimeProp ?? Date.now() + seconds * 1000)
+  const initialRem  = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
+
+  const [remaining, setRemaining] = useState(initialRem)
   const fadeAnim     = useRef(new Animated.Value(0)).current
-  const progressAnim = useRef(new Animated.Value(CIRCUMFERENCE)).current
+  const progressAnim = useRef(new Animated.Value((initialRem / total) * CIRCUMFERENCE)).current
   const wakeLockRef  = useRef(null)
   const intervalRef  = useRef(null)
-  // Wall-clock end time — survives JS suspension on lock
-  const endTimeRef   = useRef(Date.now() + seconds * 1000)
+  const audioCtxRef  = useRef(null)
 
-  // Start (or restart) the ring animation from a real seconds value
+  // Create AudioContext on mount (must happen close to a user gesture on iOS)
+  useEffect(() => {
+    try {
+      const AC = window.AudioContext || window['webkitAudioContext']
+      if (AC) audioCtxRef.current = new AC()
+    } catch (_) {}
+    return () => { try { audioCtxRef.current?.close() } catch (_) {} }
+  }, [])
+
+  const playBeep = () => {
+    try {
+      const ctx = audioCtxRef.current
+      if (!ctx) return
+      if (ctx.state === 'suspended') ctx.resume()
+      const osc  = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = 880
+      gain.gain.setValueAtTime(0.5, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.6)
+    } catch (_) {}
+  }
+
   const startRing = (fromSecs) => {
-    const dashLen = Math.max(0, (fromSecs / seconds)) * CIRCUMFERENCE
+    const dashLen = Math.max(0, (fromSecs / total)) * CIRCUMFERENCE
     progressAnim.stopAnimation()
     progressAnim.setValue(dashLen)
     Animated.timing(progressAnim, {
@@ -35,12 +63,11 @@ export default function RestTimer({ seconds, onDismiss }) {
     clearInterval(intervalRef.current)
     const appVisible = typeof document !== 'undefined' && document.visibilityState === 'visible'
     if (appVisible) {
-      // Foreground: vibrate only — no notification spam while user is watching
+      playBeep()
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         navigator.vibrate([300, 100, 300])
       }
     } else {
-      // Backgrounded / locked: push notification so user knows to come back
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try {
           new Notification('Rest complete!', {
@@ -68,7 +95,7 @@ export default function RestTimer({ seconds, onDismiss }) {
         acquire()
         const real = (endTimeRef.current - Date.now()) / 1000
         if (real <= 0) {
-          // Timer expired while phone was locked — notify now that screen is back
+          // Timer expired while phone was locked — notify on resume
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             try {
               new Notification('Rest complete!', {
@@ -79,7 +106,6 @@ export default function RestTimer({ seconds, onDismiss }) {
           }
           Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(onDismiss)
         } else {
-          // Still running — resync to real elapsed time
           setRemaining(Math.ceil(real))
           startRing(real)
         }
@@ -95,10 +121,10 @@ export default function RestTimer({ seconds, onDismiss }) {
     }
   }, [])
 
-  // ── Countdown (wall-clock based, 500 ms poll so resume is near-instant) ───
+  // ── Countdown (wall-clock, 500ms poll) ───────────────────────────────────
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start()
-    startRing(seconds)
+    startRing(initialRem)
 
     intervalRef.current = setInterval(() => {
       const real = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))

@@ -30,7 +30,8 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
 
   const [settings, setSettings]           = useState({})
   const [completedSets, setCompletedSets] = useState({})
-  const [restTimer, setRestTimer]         = useState(null)
+  const [restTimer, setRestTimer]         = useState(null)   // remaining seconds
+  const [restEndTime, setRestEndTime]     = useState(null)   // absolute end timestamp
   const [restDuration, setRestDuration]   = useState(90)
   const [currentIndex, setCurrentIndex]   = useState(0)
   const [showFinishOptions, setShowFinishOptions] = useState(null)
@@ -64,6 +65,23 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
       }
     })
   }, [workoutKey])
+
+  // Restore rest timer if it was running when app was closed
+  useEffect(() => {
+    AsyncStorage.getItem('active_rest_timer').then((raw) => {
+      if (!raw) return
+      try {
+        const { endTime, totalSeconds } = JSON.parse(raw)
+        const remaining = Math.ceil((endTime - Date.now()) / 1000)
+        if (remaining > 0) {
+          setRestEndTime(endTime)
+          setRestTimer({ remaining, totalSeconds })
+        } else {
+          AsyncStorage.removeItem('active_rest_timer')
+        }
+      } catch (_) {}
+    })
+  }, [])
 
   useEffect(() => {
     if (!profileId) return
@@ -111,11 +129,13 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
     setCompletedSets(next)
     AsyncStorage.setItem(stateKey(profileName, workoutKey), JSON.stringify(next))
     if (setAdded) {
-      // Ask for notification permission the first time a set is completed
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission()
       }
-      setRestTimer(restDuration)
+      const endTime = Date.now() + restDuration * 1000
+      AsyncStorage.setItem('active_rest_timer', JSON.stringify({ endTime, totalSeconds: restDuration }))
+      setRestEndTime(endTime)
+      setRestTimer({ remaining: restDuration, totalSeconds: restDuration })
     }
   }
 
@@ -361,9 +381,15 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
 
       {restTimer !== null && (
         <RestTimer
-          key={restTimer + Date.now()}
-          seconds={restTimer}
-          onDismiss={() => setRestTimer(null)}
+          key={restEndTime ?? restTimer.remaining}
+          seconds={restTimer.remaining}
+          totalSeconds={restTimer.totalSeconds}
+          endTime={restEndTime}
+          onDismiss={() => {
+            AsyncStorage.removeItem('active_rest_timer')
+            setRestTimer(null)
+            setRestEndTime(null)
+          }}
         />
       )}
     </SafeAreaView>

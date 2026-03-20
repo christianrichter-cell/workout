@@ -303,7 +303,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
           const opacity = scrollY.interpolate({ inputRange, outputRange: [0.25, 1, 0.25], extrapolate: 'clamp' })
           const scale   = scrollY.interpolate({ inputRange, outputRange: [0.94, 1, 0.94], extrapolate: 'clamp' })
           return (
-            <Animated.View style={{ height: CARD_HEIGHT, opacity, transform: [{ scale }], paddingHorizontal: 16, paddingVertical: 4, scrollSnapAlign: 'center' }}>
+            <Animated.View style={{ height: CARD_HEIGHT, opacity, transform: [{ scale }, { translateY: -6 }], paddingHorizontal: 16, paddingVertical: 4, scrollSnapAlign: 'center' }}>
               <ExerciseCard
                 exercise={item}
                 settings={settings[item.key] ?? { sets: item.defaultSets, reps: item.defaultReps, weight_kg: item.defaultWeight }}
@@ -407,9 +407,9 @@ function createStyles(C) {
 
     footer: {
       paddingHorizontal: 20,
-      paddingTop: 24,
-      paddingBottom: 40,
+      paddingVertical: 24,
       gap: 12,
+      justifyContent: 'center',
     },
     finishBtn: {
       backgroundColor: C.primary,
